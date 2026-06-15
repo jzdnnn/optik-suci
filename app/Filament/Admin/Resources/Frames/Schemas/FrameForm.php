@@ -14,7 +14,7 @@ class FrameForm
     {
         return $schema
             ->components([
-                Section::make('Informasi Umum')
+                Section::make('Informasi Frame')
                     ->schema([
                         TextInput::make('name')
                             ->label('Nama Frame')
@@ -22,10 +22,6 @@ class FrameForm
                         Select::make('frame_category_id')
                             ->relationship('frameCategory', 'name')
                             ->label('Kategori Frame'),
-                    ])->columns(2),
-                    
-                Section::make('Harga & Stok')
-                    ->schema([
                         TextInput::make('harga_beli')
                             ->label('Harga Beli')
                             ->prefix('Rp')
@@ -36,7 +32,8 @@ class FrameForm
                             ->prefix('Rp')
                             ->numeric()
                             ->default(0.0),
-                    ])->columns(2),
+                    ])->columns(['sm' => 1, 'md' => 2, 'lg' => 3, 'xl' => 4])
+                    ->columnSpanFull(),
             ]);
     }
 }
