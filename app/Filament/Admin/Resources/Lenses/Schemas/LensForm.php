@@ -18,6 +18,9 @@ class LensForm
             ->components([
                 Section::make('Informasi Lensa')
                     ->schema([
+                        TextInput::make('name')
+                            ->label('Nama Lensa')
+                            ->required(),
                         Select::make('jenis_lensa')
                             ->label('Jenis Lensa')
                             ->options([
@@ -33,32 +36,25 @@ class LensForm
                                 'Plastic' => 'Plastic',
                                 'Glass' => 'Glass',
                             ]),
-                        TextInput::make('index_bias')
-                            ->label('Index Bias'),
-                        TextInput::make('ukuran')
-                            ->label('Ukuran'),
-                        Select::make('lens_category_id')
-                            ->relationship('lensCategory', 'name')
-                            ->label('Kategori Kepemilikan'),
-                        Select::make('jenis_tipe')
-                            ->label('Jenis Tipe')
-                            ->options([
-                                'Finish' => 'Finish',
-                                'RX (Dibuat)' => 'RX (Dibuat)',
+                        Select::make('lens_ownership_category_id')
+                            ->relationship('lensOwnershipCategory', 'name')
+                            ->label('Kategori Kepemilikan')
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label('Nama Kategori')
+                                    ->required(),
                             ]),
-                        TagsInput::make('accessories')
-                            ->label('Aksesoris')
-                            ->suggestions([
-                                'Blu Ray',
-                                'Photochromic',
-                                'Blue Cromic',
-                                'Night Vision',
-                            ]),
-                        TextInput::make('total_pasang')
-                            ->label('Total Pasang')
+                        TextInput::make('harga_beli')
+                            ->label('Harga Beli')
                             ->numeric()
                             ->default(0),
-                    ])->columns(['sm' => 1, 'md' => 2, 'lg' => 3, 'xl' => 4])
+                        TextInput::make('harga_jual')
+                            ->label('Harga Jual')
+                            ->numeric()
+                            ->default(0),
+                    ])->columns(['sm' => 1, 'md' => 2, 'lg' => 3])
                     ->columnSpanFull(),
             ]);
     }

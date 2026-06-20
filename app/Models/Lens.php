@@ -9,6 +9,6 @@ class Lens extends Model
 {
     use HasFactory;
     protected $guarded = [];
-    protected $casts = ['accessories' => 'array'];
-    public function lensCategory() { return $this->belongsTo(LensCategory::class); }
+    public function lensOwnershipCategory() { return $this->belongsTo(LensOwnershipCategory::class); }
+    public function barangMasuk() { return $this->morphOne(BarangMasuk::class, 'barang_masukable'); }
 }

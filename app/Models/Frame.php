@@ -10,4 +10,5 @@ class Frame extends Model
     use HasFactory;
     protected $guarded = [];
     public function frameCategory() { return $this->belongsTo(FrameCategory::class); }
+    public function barangMasuk() { return $this->morphOne(BarangMasuk::class, 'barang_masukable'); }
 }

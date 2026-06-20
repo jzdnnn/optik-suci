@@ -14,21 +14,21 @@ class LensesTable
     {
         return $table
             ->columns([
-                TextColumn::make('ukuran')
-                    ->searchable(),
+                TextColumn::make('name')
+                    ->searchable()
+                    ->label('Nama Lensa'),
                 TextColumn::make('jenis_lensa')
-                    ->searchable(),
-                TextColumn::make('index_bias')
                     ->searchable(),
                 TextColumn::make('bahan_lensa')
                     ->searchable(),
-                TextColumn::make('lens_category_id')
-                    ->numeric()
+                TextColumn::make('lensOwnershipCategory.name')
+                    ->label('Kategori Kepemilikan')
                     ->sortable(),
-                TextColumn::make('jenis_tipe')
-                    ->searchable(),
-                TextColumn::make('total_pasang')
-                    ->numeric()
+                TextColumn::make('harga_beli')
+                    ->money('idr')
+                    ->sortable(),
+                TextColumn::make('harga_jual')
+                    ->money('idr')
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()

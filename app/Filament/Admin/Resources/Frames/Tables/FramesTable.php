@@ -16,14 +16,16 @@ class FramesTable
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),
-                TextColumn::make('frame_category_id')
-                    ->numeric()
+                TextColumn::make('frameCategory.name')
+                    ->label('Kategori Frame')
                     ->sortable(),
                 TextColumn::make('harga_beli')
-                    ->numeric()
+                    ->label('Harga Beli')
+                    ->money('idr')
                     ->sortable(),
                 TextColumn::make('harga_jual')
-                    ->numeric()
+                    ->label('Harga Jual')
+                    ->money('idr')
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()

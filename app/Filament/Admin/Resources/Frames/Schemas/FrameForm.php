@@ -21,7 +21,14 @@ class FrameForm
                             ->required(),
                         Select::make('frame_category_id')
                             ->relationship('frameCategory', 'name')
-                            ->label('Kategori Frame'),
+                            ->label('Kategori Frame')
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label('Nama Kategori')
+                                    ->required(),
+                            ]),
                         TextInput::make('harga_beli')
                             ->label('Harga Beli')
                             ->prefix('Rp')

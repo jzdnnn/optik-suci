@@ -34,11 +34,7 @@ class PatientForm
                                 'BPJS Kelas 2' => 'BPJS Kelas 2',
                                 'BPJS Kelas 3' => 'BPJS Kelas 3',
                             ]),
-                        TextInput::make('no_bon')
-                            ->label('No BON'),
-                        DatePicker::make('tanggal_pengambilan')
-                            ->label('Tanggal Pengambilan')
-                            ->native(false),
+
                         Radio::make('jenis_kelamin')
                             ->label('Jenis Kelamin')
                             ->options([

@@ -22,11 +22,7 @@ class PatientsTable
                     ->searchable(),
                 TextColumn::make('no_hp')
                     ->searchable(),
-                TextColumn::make('tanggal_pengambilan')
-                    ->date()
-                    ->sortable(),
-                TextColumn::make('no_bon')
-                    ->searchable(),
+
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
