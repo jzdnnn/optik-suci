@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Admin\Resources\FrameCategories;
+namespace App\Filament\Admin\Resources\LensOwnershipCategories;
 
-use App\Filament\Admin\Resources\FrameCategories\Pages\ManageFrameCategories;
-use App\Models\FrameCategory;
+use App\Filament\Admin\Resources\LensOwnershipCategories\Pages\ManageLensOwnershipCategories;
+use App\Models\LensOwnershipCategory;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -16,16 +16,16 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class FrameCategoryResource extends Resource
+class LensOwnershipCategoryResource extends Resource
 {
-    protected static ?string $model = FrameCategory::class;
+    protected static ?string $model = LensOwnershipCategory::class;
 
-    protected static ?string $modelLabel = 'Kategori Frame';
-    protected static ?string $pluralModelLabel = 'Kategori Frame';
+    protected static ?string $modelLabel = 'Kategori Kepemilikan Lensa';
+    protected static ?string $pluralModelLabel = 'Kategori Kepemilikan Lensa';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Katalog';
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-bookmark';
 
     public static function form(Schema $schema): Schema
     {
@@ -71,7 +71,7 @@ class FrameCategoryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ManageFrameCategories::route('/'),
+            'index' => ManageLensOwnershipCategories::route('/'),
         ];
     }
 }
