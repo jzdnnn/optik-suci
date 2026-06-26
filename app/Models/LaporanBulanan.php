@@ -41,20 +41,37 @@ class LaporanBulanan extends Model
 
     public function getCalculatedOmzetAttribute(): float
     {
-        return (float) BarangKeluar::whereYear('tanggal_transaksi', $this->tahun)
+        // Omset dari transaksi yang dibuat pada bulan ini
+        $omzetBulanIni = BarangKeluar::whereYear('tanggal_transaksi', $this->tahun)
             ->whereMonth('tanggal_transaksi', $this->bulan)
-            ->sum('total_transaksi');
+            ->get()
+            ->sum(function ($item) {
+                // Jika langsung lunas di hari yang sama
+                if ($item->status_pembayaran === 'lunas' && $item->tanggal_pelunasan == $item->tanggal_transaksi) {
+                    return $item->total_transaksi;
+                }
+                // Jika DP (termasuk yang sudah lunas tapi pelunasannya di hari/bulan berbeda), 
+                // maka cash yang masuk pada saat tanggal_transaksi adalah sebesar DP
+                return $item->dp_dibayar ?: 0;
+            });
+
+        // Omset dari pelunasan transaksi yang dibuat di bulan sebelumnya namun dilunasi bulan ini
+        $pelunasanBulanIni = BarangKeluar::whereYear('tanggal_pelunasan', $this->tahun)
+            ->whereMonth('tanggal_pelunasan', $this->bulan)
+            ->whereColumn('tanggal_pelunasan', '!=', 'tanggal_transaksi')
+            ->get()
+            ->sum(function ($item) {
+                return $item->total_transaksi - ($item->dp_dibayar ?: 0);
+            });
+
+        return (float) ($omzetBulanIni + $pelunasanBulanIni);
     }
 
     public function getCalculatedPendapatanHarianAttribute(): float
     {
-        $transactions = BarangKeluar::whereYear('tanggal_transaksi', $this->tahun)
-            ->whereMonth('tanggal_transaksi', $this->bulan)
-            ->get();
-
-        return (float) $transactions->sum(function ($item) {
-            return $item->status_pembayaran === 'lunas' ? $item->total_transaksi : ($item->status_pembayaran === 'dp' ? $item->dp_dibayar : 0);
-        });
+        // Dalam konteks baru, pendapatan harian (cash masuk harian dari transaksi)
+        // nilainya ekuivalen dengan omset (cash basis). Kita return nilai yang sama.
+        return $this->getCalculatedOmzetAttribute();
     }
 
     public function getTotalPendapatanAttribute(): float

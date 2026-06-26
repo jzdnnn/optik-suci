@@ -24,7 +24,26 @@ class BarangKeluarForm
                             ->relationship('patient', 'nama')
                             ->label('Pasien')
                             ->searchable()
-                            ->required(),
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Get $get, Set $set, $state) {
+                                if ($state) {
+                                    $patient = \App\Models\Patient::find($state);
+                                    if ($patient) {
+                                        $potongan = 0;
+                                        if ($patient->kategori === 'BPJS Kelas 1') $potongan = 330000;
+                                        elseif ($patient->kategori === 'BPJS Kelas 2') $potongan = 220000;
+                                        elseif ($patient->kategori === 'BPJS Kelas 3') $potongan = 165000;
+                                        
+                                        $set('potongan_bpjs', $potongan);
+                                        
+                                        $frame = (float) $get('harga_frame') ?: 0;
+                                        $lensa = (float) $get('harga_lensa') ?: 0;
+                                        $diskon = (float) $get('diskon') ?: 0;
+                                        $set('total_transaksi', $frame + $lensa - $potongan - $diskon);
+                                    }
+                                }
+                            }),
                         TextInput::make('no_bon')
                             ->label('No BON')
                             ->readOnly()
@@ -61,7 +80,9 @@ class BarangKeluarForm
                                     if ($frame) {
                                         $set('harga_frame', $frame->harga_jual);
                                         $lensa = (float) $get('harga_lensa') ?: 0;
-                                        $set('total_transaksi', $frame->harga_jual + $lensa);
+                                        $potongan = (float) $get('potongan_bpjs') ?: 0;
+                                        $diskon = (float) $get('diskon') ?: 0;
+                                        $set('total_transaksi', $frame->harga_jual + $lensa - $potongan - $diskon);
                                     }
                                 }
                             })
@@ -114,7 +135,9 @@ class BarangKeluarForm
                                         $hargaTotalLensa = $lens->harga_jual * $pcs;
                                         $set('harga_lensa', $hargaTotalLensa);
                                         $frame = (float) $get('harga_frame') ?: 0;
-                                        $set('total_transaksi', $frame + $hargaTotalLensa);
+                                        $potongan = (float) $get('potongan_bpjs') ?: 0;
+                                        $diskon = (float) $get('diskon') ?: 0;
+                                        $set('total_transaksi', $frame + $hargaTotalLensa - $potongan - $diskon);
                                     }
                                 }
                             }),
@@ -137,7 +160,9 @@ class BarangKeluarForm
                                         $hargaTotalLensa = $lens->harga_jual * $pcs;
                                         $set('harga_lensa', $hargaTotalLensa);
                                         $frame = (float) $get('harga_frame') ?: 0;
-                                        $set('total_transaksi', $frame + $hargaTotalLensa);
+                                        $potongan = (float) $get('potongan_bpjs') ?: 0;
+                                        $diskon = (float) $get('diskon') ?: 0;
+                                        $set('total_transaksi', $frame + $hargaTotalLensa - $potongan - $diskon);
                                     }
                                 }
                             })
@@ -291,6 +316,23 @@ class BarangKeluarForm
 
                 Section::make('Pembayaran')
                     ->schema([
+                        TextInput::make('potongan_bpjs')
+                            ->label('Potongan BPJS')
+                            ->numeric()
+                            ->default(0)
+                            ->readOnly(),
+                        TextInput::make('diskon')
+                            ->label('Diskon Lainnya')
+                            ->numeric()
+                            ->default(0)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Get $get, Set $set, $state) {
+                                $frame = (float) $get('harga_frame') ?: 0;
+                                $lensa = (float) $get('harga_lensa') ?: 0;
+                                $potongan = (float) $get('potongan_bpjs') ?: 0;
+                                $diskon = (float) $state ?: 0;
+                                $set('total_transaksi', $frame + $lensa - $potongan - $diskon);
+                            }),
                         TextInput::make('total_transaksi')
                             ->label('Total Transaksi')
                             ->numeric()
