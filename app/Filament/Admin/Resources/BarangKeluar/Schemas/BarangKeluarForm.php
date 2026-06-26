@@ -64,7 +64,30 @@ class BarangKeluarForm
                                         $set('total_transaksi', $frame->harga_jual + $lensa);
                                     }
                                 }
-                            }),
+                            })
+                            ->rules([
+                                fn (Get $get, $record) => function (string $attribute, $value, $fail) use ($get, $record) {
+                                    if (!$value || !in_array($get('tipe_transaksi'), ['frame', 'lengkap'])) {
+                                        return;
+                                    }
+                                    
+                                    $frame = \App\Models\Frame::find($value);
+                                    if (!$frame) {
+                                        return;
+                                    }
+                                    
+                                    $barangMasuk = $frame->barangMasuk;
+                                    $currentStok = $barangMasuk ? $barangMasuk->stok : 0;
+                                    
+                                    if ($record && $record->exists && $record->frame_id == $value) {
+                                        $currentStok += 1;
+                                    }
+                                    
+                                    if (1 > $currentStok) {
+                                        $fail("Stok frame '{$frame->name}' kosong / tidak mencukupi.");
+                                    }
+                                }
+                            ]),
                         TextInput::make('harga_frame')
                             ->label('Harga Frame')
                             ->numeric()
@@ -118,12 +141,141 @@ class BarangKeluarForm
                                     }
                                 }
                             })
-                            ->required(fn (Get $get) => in_array($get('tipe_transaksi'), ['lensa', 'lengkap'])),
+                            ->required(fn (Get $get) => in_array($get('tipe_transaksi'), ['lensa', 'lengkap']))
+                            ->rules([
+                                fn (Get $get, $record) => function (string $attribute, $value, $fail) use ($get, $record) {
+                                    $lensId = $get('lens_id');
+                                    if (!$lensId || !in_array($get('tipe_transaksi'), ['lensa', 'lengkap'])) {
+                                        return;
+                                    }
+                                    
+                                    $lens = \App\Models\Lens::find($lensId);
+                                    if (!$lens) {
+                                        return;
+                                    }
+                                    
+                                    $barangMasuk = $lens->barangMasuk;
+                                    $currentStok = $barangMasuk ? $barangMasuk->stok : 0;
+                                    
+                                    if ($record && $record->exists && $record->lens_id == $lensId) {
+                                        $currentStok += (int) $record->jumlah_lensa_pcs;
+                                    }
+                                    
+                                    $requestedPcs = (int) $value;
+                                    if ($requestedPcs > $currentStok) {
+                                        $fail("Stok lensa '{$lens->name}' tidak mencukupi. Stok tersedia: " . ($currentStok / 2) . " pasang (" . $currentStok . " pcs).");
+                                    }
+                                }
+                            ]),
                         TextInput::make('harga_lensa')
                             ->label('Harga Lensa (Termasuk Pasang)')
                             ->numeric()
                             ->default(0)
                             ->readOnly(),
+
+                        Section::make('Ukuran Lensa')
+                            ->schema([
+                                // Header row (labels) using a Grid with 6 columns
+                                Grid::make(6)
+                                    ->schema([
+                                        TextInput::make('label_mata')
+                                            ->label('')
+                                            ->default('MATA')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('label_sph')
+                                            ->label('')
+                                            ->default('SPH')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('label_cyl')
+                                            ->label('')
+                                            ->default('CYL')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('label_axis')
+                                            ->label('')
+                                            ->default('AXIS')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('label_add')
+                                            ->label('')
+                                            ->default('ADD')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('label_pd')
+                                            ->label('')
+                                            ->default('PD')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                    ])
+                                    ->columns(6)
+                                    ->columnSpanFull()
+                                    ->extraAttributes(['class' => 'font-bold text-center']),
+
+                                // OD Row
+                                Grid::make(6)
+                                    ->schema([
+                                        TextInput::make('label_od')
+                                            ->label('')
+                                            ->default('OD (Kanan)')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('od_sph')
+                                            ->label('')
+                                            ->placeholder('- / + SPH'),
+                                        TextInput::make('od_cyl')
+                                            ->label('')
+                                            ->placeholder('CYL'),
+                                        TextInput::make('od_axis')
+                                            ->label('')
+                                            ->placeholder('AXIS'),
+                                        TextInput::make('od_add')
+                                            ->label('')
+                                            ->placeholder('ADD'),
+                                        TextInput::make('od_pd')
+                                            ->label('')
+                                            ->placeholder('PD'),
+                                    ])
+                                    ->columns(6)
+                                    ->columnSpanFull(),
+
+                                // OS Row
+                                Grid::make(6)
+                                    ->schema([
+                                        TextInput::make('label_os')
+                                            ->label('')
+                                            ->default('OS (Kiri)')
+                                            ->readOnly()
+                                            ->disabled()
+                                            ->dehydrated(false),
+                                        TextInput::make('os_sph')
+                                            ->label('')
+                                            ->placeholder('- / + SPH'),
+                                        TextInput::make('os_cyl')
+                                            ->label('')
+                                            ->placeholder('CYL'),
+                                        TextInput::make('os_axis')
+                                            ->label('')
+                                            ->placeholder('AXIS'),
+                                        TextInput::make('os_add')
+                                            ->label('')
+                                            ->placeholder('ADD'),
+                                        TextInput::make('os_pd')
+                                            ->label('')
+                                            ->placeholder('PD'),
+                                    ])
+                                    ->columns(6)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columnSpanFull(),
                         
                         Section::make('Lainnya')
                             ->schema([

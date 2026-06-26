@@ -23,6 +23,13 @@ class BarangKeluarResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Manajemen Stok';
 
+    protected static ?string $recordTitleAttribute = 'no_bon';
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['no_bon', 'patient.nama'];
+    }
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingCart;
 
     public static function form(Schema $schema): Schema

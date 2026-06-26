@@ -22,6 +22,8 @@ class LensResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Katalog';
 
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Schema $schema): Schema
     {
         return LensForm::configure($schema);

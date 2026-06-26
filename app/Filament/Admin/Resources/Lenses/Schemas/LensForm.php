@@ -21,14 +21,17 @@ class LensForm
                         TextInput::make('name')
                             ->label('Nama Lensa')
                             ->required(),
-                        Select::make('jenis_lensa')
+                        Select::make('lens_type_id')
+                            ->relationship('lensType', 'name')
                             ->label('Jenis Lensa')
-                            ->options([
-                                'Single Vision' => 'Single Vision',
-                                'Kryptok' => 'Kryptok',
-                                'Flat top' => 'Flat top',
-                                'Progressive' => 'Progressive',
-                                'Poly Carbonate' => 'Poly Carbonate',
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label('Jenis Lensa Baru')
+                                    ->required()
+                                    ->unique('lens_types', 'name'),
                             ]),
                         Select::make('bahan_lensa')
                             ->label('Bahan Lensa')
@@ -36,16 +39,45 @@ class LensForm
                                 'Plastic' => 'Plastic',
                                 'Glass' => 'Glass',
                             ]),
+                        Select::make('jenis_kepemilikan')
+                            ->label('Jenis Kepemilikan')
+                            ->options([
+                                'Stok Optik' => 'Stok Optik',
+                                'Luar Optik' => 'Luar Optik',
+                            ])
+                            ->live()
+                            ->afterStateHydrated(function ($state, $set, $record) {
+                                if ($record && $record->lensOwnershipCategory) {
+                                    $set('jenis_kepemilikan', $record->lensOwnershipCategory->type);
+                                }
+                            })
+                            ->dehydrated(false),
+
                         Select::make('lens_ownership_category_id')
-                            ->relationship('lensOwnershipCategory', 'name')
                             ->label('Kategori Kepemilikan')
+                            ->options(fn ($get) => 
+                                \App\Models\LensOwnershipCategory::query()
+                                    ->when($get('jenis_kepemilikan'), fn ($query, $type) => $query->where('type', $type))
+                                    ->pluck('name', 'id')
+                            )
                             ->searchable()
                             ->preload()
-                            ->createOptionForm([
+                            ->required()
+                            ->createOptionForm(fn ($get) => [
                                 TextInput::make('name')
                                     ->label('Nama Kategori')
                                     ->required(),
+                                Select::make('type')
+                                    ->label('Jenis Kepemilikan')
+                                    ->options([
+                                        'Stok Optik' => 'Stok Optik',
+                                        'Luar Optik' => 'Luar Optik',
+                                    ])
+                                    ->default($get('jenis_kepemilikan'))
+                                    ->required()
+                                    ->native(false),
                             ]),
+
                         TextInput::make('harga_beli')
                             ->label('Harga Beli')
                             ->numeric()

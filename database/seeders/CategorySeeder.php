@@ -17,9 +17,23 @@ class CategorySeeder extends Seeder
             \App\Models\FrameCategory::firstOrCreate(['name' => $category]);
         }
 
-        $lensCategories = ['Stok Optik', 'Luar Optik'];
-        foreach ($lensCategories as $category) {
-            \App\Models\LensOwnershipCategory::firstOrCreate(['name' => $category]);
+        $lensCategories = [
+            ['name' => 'Domas', 'type' => 'Stok Optik'],
+            ['name' => 'Poly', 'type' => 'Stok Optik'],
+            ['name' => 'Essilor', 'type' => 'Stok Optik'],
+            ['name' => 'Ayi', 'type' => 'Luar Optik'],
+            ['name' => 'Hasbi', 'type' => 'Luar Optik'],
+        ];
+        foreach ($lensCategories as $cat) {
+            \App\Models\LensOwnershipCategory::firstOrCreate(
+                ['name' => $cat['name']],
+                ['type' => $cat['type']]
+            );
+        }
+
+        $lensTypes = ['Single Vision', 'Kryptok', 'Flat top', 'Progressive', 'Poly Carbonate'];
+        foreach ($lensTypes as $type) {
+            \App\Models\LensType::firstOrCreate(['name' => $type]);
         }
     }
 }

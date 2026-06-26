@@ -22,6 +22,8 @@ class PatientResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Operasional';
 
+    protected static ?string $recordTitleAttribute = 'nama';
+
     public static function form(Schema $schema): Schema
     {
         return PatientForm::configure($schema);

@@ -22,6 +22,8 @@ class FrameResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Katalog';
 
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function form(Schema $schema): Schema
     {
         return FrameForm::configure($schema);

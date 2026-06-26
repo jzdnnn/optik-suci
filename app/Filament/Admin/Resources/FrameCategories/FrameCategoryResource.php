@@ -23,7 +23,9 @@ class FrameCategoryResource extends Resource
     protected static ?string $modelLabel = 'Kategori Frame';
     protected static ?string $pluralModelLabel = 'Kategori Frame';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Katalog';
+    protected static string|\UnitEnum|null $navigationGroup = 'Kategori';
+
+    protected static ?string $recordTitleAttribute = 'name';
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
 

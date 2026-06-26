@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Users\Schemas;
 
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
 use Illuminate\Support\Facades\Hash;
 
@@ -14,7 +15,7 @@ class UserForm
     {
         return $schema
             ->components([
-Section::make('Informasi Pengguna')
+                Section::make('Informasi Pengguna')
                     ->schema([
                         TextInput::make('name')
                             ->label('Nama Lengkap')
@@ -33,6 +34,12 @@ Section::make('Informasi Pengguna')
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $operation): bool => $operation === 'create')
                             ->maxLength(255),
+                        Select::make('roles')
+                            ->label('Role / Hak Akses')
+                            ->relationship('roles', 'name')
+                            ->multiple()
+                            ->preload()
+                            ->required(),
                     ])->columns(['sm' => 1, 'md' => 2, 'lg' => 3])
                     ->columnSpanFull(),
             ]);

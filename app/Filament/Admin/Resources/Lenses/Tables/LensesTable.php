@@ -17,8 +17,10 @@ class LensesTable
                 TextColumn::make('name')
                     ->searchable()
                     ->label('Nama Lensa'),
-                TextColumn::make('jenis_lensa')
-                    ->searchable(),
+                TextColumn::make('lensType.name')
+                    ->label('Jenis Lensa')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('bahan_lensa')
                     ->searchable(),
                 TextColumn::make('lensOwnershipCategory.name')

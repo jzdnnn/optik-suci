@@ -25,6 +25,9 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(AdminSeeder::class);
+        $this->call(RoleAndPermissionSeeder::class);
         $this->call(CategorySeeder::class);
+        $this->call(JenisPengeluaranSeeder::class);
+        $this->call(CabangOptikSeeder::class);
     }
 }

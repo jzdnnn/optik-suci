@@ -23,6 +23,11 @@ class UsersTable
                     ->label('Email Address')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('roles.name')
+                    ->label('Role / Hak Akses')
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('Tidak ada role'),
                 TextColumn::make('created_at')
                     ->label('Dibuat Pada')
                     ->dateTime()
