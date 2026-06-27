@@ -83,7 +83,8 @@ class LaporanBulananForm
                                             ->numeric()
                                             ->prefix('Rp')
                                             ->default(0)
-                                            ->live(),
+                                            ->readOnly()
+                                            ->dehydrated(),
                                         TextInput::make('pendapatan_harian')
                                             ->label('Pendapatan Harian (Tunai Masuk)')
                                             ->numeric()
@@ -223,13 +224,22 @@ class LaporanBulananForm
                                                 $tahun = $get('tahun');
                                                 if (!$cabang || !$bulan || !$tahun) return 'Rp 0';
                                                 
-                                                $sum = \App\Models\Pengeluaran::join('jenis_pengeluaran', 'pengeluaran.jenis_pengeluaran_id', '=', 'jenis_pengeluaran.id')
+                                                $base = \App\Models\Pengeluaran::join('jenis_pengeluaran', 'pengeluaran.jenis_pengeluaran_id', '=', 'jenis_pengeluaran.id')
                                                     ->where('pengeluaran.cabang', $cabang)
                                                     ->whereYear('pengeluaran.tanggal', $tahun)
                                                     ->whereMonth('pengeluaran.tanggal', $bulan)
                                                     ->where('jenis_pengeluaran.tipe', 'stok')
                                                     ->sum('pengeluaran.nominal');
-                                                return 'Rp ' . number_format($sum, 0, ',', '.');
+
+                                                $biayaLensaLuar = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+                                                    ->whereMonth('tanggal_transaksi', $bulan)
+                                                    ->sum('biaya_beli_lensa');
+
+                                                $biayaAksesoris = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+                                                    ->whereMonth('tanggal_transaksi', $bulan)
+                                                    ->sum('biaya_beli_aksesoris');
+
+                                                return 'Rp ' . number_format($base + $biayaLensaLuar + $biayaAksesoris, 0, ',', '.');
                                             }),
                                         Placeholder::make('total_pengeluaran_gaji')
                                             ->label('Total Pengeluaran Gaji & Lainnya')
@@ -255,12 +265,21 @@ class LaporanBulananForm
                                                 $tahun = $get('tahun');
                                                 if (!$cabang || !$bulan || !$tahun) return 'Rp 0';
                                                 
-                                                $sum = \App\Models\Pengeluaran::join('jenis_pengeluaran', 'pengeluaran.jenis_pengeluaran_id', '=', 'jenis_pengeluaran.id')
+                                                $base = \App\Models\Pengeluaran::join('jenis_pengeluaran', 'pengeluaran.jenis_pengeluaran_id', '=', 'jenis_pengeluaran.id')
                                                     ->where('pengeluaran.cabang', $cabang)
                                                     ->whereYear('pengeluaran.tanggal', $tahun)
                                                     ->whereMonth('pengeluaran.tanggal', $bulan)
                                                     ->sum('pengeluaran.nominal');
-                                                return 'Rp ' . number_format($sum, 0, ',', '.');
+
+                                                $biayaLensaLuar = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+                                                    ->whereMonth('tanggal_transaksi', $bulan)
+                                                    ->sum('biaya_beli_lensa');
+
+                                                $biayaAksesoris = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+                                                    ->whereMonth('tanggal_transaksi', $bulan)
+                                                    ->sum('biaya_beli_aksesoris');
+
+                                                return 'Rp ' . number_format($base + $biayaLensaLuar + $biayaAksesoris, 0, ',', '.');
                                             }),
                                         Placeholder::make('laba_bersih')
                                             ->label('LABA BERSIH BULANAN')
@@ -269,22 +288,30 @@ class LaporanBulananForm
                                                 $bulan = $get('bulan');
                                                 $tahun = $get('tahun');
                                                 if (!$cabang || !$bulan || !$tahun) return 'Rp 0';
-
+ 
                                                 $omzet = (float) $get('omzet');
                                                 $bpjs = (float) $get('pendapatan_bpjs');
                                                 $harian = (float) $get('pendapatan_harian');
                                                 $totalPendapatan = $omzet + $bpjs + $harian;
-
+ 
                                                 $totalSelisih = collect($get('selisih_details') ?? [])
                                                     ->sum(fn ($item) => (float) ($item['nominal'] ?? 0));
-
+ 
                                                 $totalPengeluaran = \App\Models\Pengeluaran::join('jenis_pengeluaran', 'pengeluaran.jenis_pengeluaran_id', '=', 'jenis_pengeluaran.id')
                                                     ->where('pengeluaran.cabang', $cabang)
                                                     ->whereYear('pengeluaran.tanggal', $tahun)
                                                     ->whereMonth('pengeluaran.tanggal', $bulan)
                                                     ->sum('pengeluaran.nominal');
 
-                                                $laba = $totalPendapatan - $totalPengeluaran - $totalSelisih;
+                                                $biayaLensaLuar = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+                                                    ->whereMonth('tanggal_transaksi', $bulan)
+                                                    ->sum('biaya_beli_lensa');
+
+                                                $biayaAksesoris = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+                                                    ->whereMonth('tanggal_transaksi', $bulan)
+                                                    ->sum('biaya_beli_aksesoris');
+ 
+                                                $laba = $totalPendapatan - ($totalPengeluaran + $biayaLensaLuar + $biayaAksesoris) - $totalSelisih;
                                                 return 'Rp ' . number_format($laba, 0, ',', '.');
                                             }),
                                     ])
@@ -351,6 +378,7 @@ class LaporanBulananForm
 
         if (!$bulan || !$tahun) {
             $set('omzet', 0);
+            $set('pendapatan_bpjs', 0);
             $set('pendapatan_harian', 0);
             $set('selisih_details', []);
             for ($week = 1; $week <= 5; $week++) {
@@ -359,22 +387,46 @@ class LaporanBulananForm
             return;
         }
 
-        // Calculate Omzet
-        $omzet = (float) \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+        // 1. Hitung Omzet & Pendapatan Harian berbasis kas (cash-basis)
+        // Omset dari transaksi baru yang dibuat di bulan/tahun terpilih
+        $omzetBulanIni = \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
             ->whereMonth('tanggal_transaksi', $bulan)
-            ->sum('total_transaksi');
-        $set('omzet', $omzet);
+            ->get()
+            ->sum(function ($item) {
+                $base = 0;
+                if ($item->status_pembayaran === 'lunas' && ($item->tanggal_pelunasan == $item->tanggal_transaksi || is_null($item->tanggal_pelunasan))) {
+                    $base = $item->total_transaksi;
+                } else {
+                    $base = $item->dp_dibayar ?: 0;
+                }
+                return $base + ($item->sisa_bpjs ?: 0);
+            });
 
-        // Calculate Pendapatan Harian
+        // Omset dari pelunasan DP/transaksi lama yang diselesaikan di bulan/tahun terpilih
+        $pelunasanBulanIni = \App\Models\BarangKeluar::whereYear('tanggal_pelunasan', $tahun)
+            ->whereMonth('tanggal_pelunasan', $bulan)
+            ->whereColumn('tanggal_pelunasan', '!=', 'tanggal_transaksi')
+            ->get()
+            ->sum(function ($item) {
+                return $item->total_transaksi - ($item->dp_dibayar ?: 0);
+            });
+
+        $calculatedOmzet = (float) ($omzetBulanIni + $pelunasanBulanIni);
+
+        $set('omzet', $calculatedOmzet);
+        $set('pendapatan_harian', $calculatedOmzet);
+
+        // Hitung Pendapatan BPJS otomatis
+        $bpjsSum = (float) \App\Models\BarangKeluar::whereYear('tanggal_transaksi', $tahun)
+            ->whereMonth('tanggal_transaksi', $bulan)
+            ->sum('potongan_bpjs');
+        $set('pendapatan_bpjs', $bpjsSum);
+
+        // Fetch transactions for other calculations (weekly and unpaid details)
         $transactions = \App\Models\BarangKeluar::with('patient')
             ->whereYear('tanggal_transaksi', $tahun)
             ->whereMonth('tanggal_transaksi', $bulan)
             ->get();
-
-        $harian = (float) $transactions->sum(function ($item) {
-            return $item->status_pembayaran === 'lunas' ? $item->total_transaksi : ($item->status_pembayaran === 'dp' ? $item->dp_dibayar : 0);
-        });
-        $set('pendapatan_harian', $harian);
 
         // Calculate weekly deposits
         for ($week = 1; $week <= 5; $week++) {

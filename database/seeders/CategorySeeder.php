@@ -18,11 +18,12 @@ class CategorySeeder extends Seeder
         }
 
         $lensCategories = [
-            ['name' => 'Domas', 'type' => 'Stok Optik'],
-            ['name' => 'Poly', 'type' => 'Stok Optik'],
-            ['name' => 'Essilor', 'type' => 'Stok Optik'],
-            ['name' => 'Ayi', 'type' => 'Luar Optik'],
-            ['name' => 'Hasbi', 'type' => 'Luar Optik'],
+            ['name' => 'Domas + Faset', 'type' => 'Stok Optik'],
+            ['name' => 'Poly + Faset', 'type' => 'Stok Optik'],
+            ['name' => 'Essilor + Faset', 'type' => 'Stok Optik'],
+            ['name' => 'Ayi + Faset', 'type' => 'Luar Optik'],
+            ['name' => 'Hasbi + Faset', 'type' => 'Luar Optik'],
+            ['name' => 'Oriental + Faset', 'type' => 'Stok Optik'],
         ];
         foreach ($lensCategories as $cat) {
             \App\Models\LensOwnershipCategory::firstOrCreate(
@@ -31,7 +32,7 @@ class CategorySeeder extends Seeder
             );
         }
 
-        $lensTypes = ['Single Vision', 'Kryptok', 'Flat top', 'Progressive', 'Poly Carbonate'];
+        $lensTypes = ['Blu Ray', 'Photochromic', 'Night Vision', 'Blue Chromic', 'Warna', 'Standar'];
         foreach ($lensTypes as $type) {
             \App\Models\LensType::firstOrCreate(['name' => $type]);
         }

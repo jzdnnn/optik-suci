@@ -27,10 +27,16 @@ class ReportController extends Controller
         $runningBalance = $cabangRecord ? (float) $cabangRecord->saldo_awal : 0.0;
         $initialBalance = $runningBalance;
 
-        // 2. Transaksi barang keluar per hari
+        // 2. Transaksi barang keluar per hari (berdasarkan tanggal transaksi dibuat)
         $transactions = BarangKeluar::whereBetween('tanggal_transaksi', [$start, $end])
             ->get()
             ->groupBy(fn ($item) => Carbon::parse($item->tanggal_transaksi)->toDateString());
+
+        // 2b. Transaksi pelunasan per hari (yang tanggal pelunasannya di range terpilih dan berbeda dengan tanggal transaksi)
+        $pelunasans = BarangKeluar::whereBetween('tanggal_pelunasan', [$start, $end])
+            ->whereColumn('tanggal_pelunasan', '!=', 'tanggal_transaksi')
+            ->get()
+            ->groupBy(fn ($item) => Carbon::parse($item->tanggal_pelunasan)->toDateString());
 
         // 3. Pengeluaran per hari dari Catat Pengeluaran
         $expenseQuery = Pengeluaran::with('jenisPengeluaran')
@@ -58,17 +64,32 @@ class ReportController extends Controller
             }
 
             $dayTransactions = $transactions->get($dateStr, collect());
+            $dayPelunasans    = $pelunasans->get($dateStr, collect());
             $dayExpenses     = $expenses->get($dateStr, collect());
 
-            // HARGA = total omzet (semua transaksi)
+            // HARGA = total omzet dari transaksi baru yang dibuat di hari ini
             $harga = $dayTransactions->sum('total_transaksi');
 
-            // PENDAPATAN MASUK = kas yang benar-benar masuk
-            $pendapatan = $dayTransactions->sum(function ($item) {
-                return $item->status_pembayaran === 'lunas'
-                    ? $item->total_transaksi
-                    : ($item->status_pembayaran === 'dp' ? $item->dp_dibayar : 0);
+            // PENDAPATAN MASUK = Kas masuk dari transaksi baru + kas masuk dari pelunasan transaksi lama
+            $incomeCreated = $dayTransactions->sum(function ($item) {
+                $base = 0;
+                // Jika langsung lunas pada hari pembuatan
+                if ($item->status_pembayaran === 'lunas' && ($item->tanggal_pelunasan == $item->tanggal_transaksi || is_null($item->tanggal_pelunasan))) {
+                    $base = $item->total_transaksi;
+                } else {
+                    // Jika DP (atau lunas di hari berbeda, saat pembuatan baru bayar DP)
+                    $base = $item->dp_dibayar ?: 0;
+                }
+                // Tambahkan sisa uang kembalian BPJS ke pendapatan masuk
+                return $base + ($item->sisa_bpjs ?: 0);
             });
+
+            $incomePelunasan = $dayPelunasans->sum(function ($item) {
+                // Sisa pembayaran (Total - DP)
+                return $item->total_transaksi - ($item->dp_dibayar ?: 0);
+            });
+
+            $pendapatan = $incomeCreated + $incomePelunasan;
 
             // PENGELUARAN = detail per item dari Catat Pengeluaran
             $pengeluaranDetails = $dayExpenses->map(function ($exp) {
@@ -79,6 +100,24 @@ class ReportController extends Controller
                     'nominal' => (float) $exp->nominal,
                 ];
             })->values()->toArray();
+
+            // Tambahkan biaya pembelian lensa luar optik ke pengeluaran
+            $totalBiayaBeliLensa = $dayTransactions->sum(fn ($item) => (float) ($item->biaya_beli_lensa ?? 0));
+            if ($totalBiayaBeliLensa > 0) {
+                $pengeluaranDetails[] = [
+                    'label' => 'Pembelian Lensa (Luar Optik)',
+                    'nominal' => $totalBiayaBeliLensa,
+                ];
+            }
+
+            // Tambahkan biaya HPP aksesoris ke pengeluaran
+            $totalBiayaAksesoris = $dayTransactions->sum(fn ($item) => (float) ($item->biaya_beli_aksesoris ?? 0));
+            if ($totalBiayaAksesoris > 0) {
+                $pengeluaranDetails[] = [
+                    'label' => 'Modal HPP Aksesoris',
+                    'nominal' => $totalBiayaAksesoris,
+                ];
+            }
 
             $totalPengeluaran = collect($pengeluaranDetails)->sum('nominal');
 
@@ -95,7 +134,7 @@ class ReportController extends Controller
             ];
         }
 
-        $filtered = array_filter($report, fn ($r) => $r['harga'] > 0 || $r['total_pengeluaran'] > 0);
+        $filtered = array_filter($report, fn ($r) => $r['harga'] > 0 || $r['total_pengeluaran'] > 0 || $r['pendapatan'] > 0);
         $filtered = array_values($filtered);
 
         return [

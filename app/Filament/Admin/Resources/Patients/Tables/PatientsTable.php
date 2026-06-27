@@ -14,6 +14,9 @@ class PatientsTable
     {
         return $table
             ->columns([
+                TextColumn::make('no_bon')
+                    ->label('No BON')
+                    ->searchable(),
                 TextColumn::make('nama')
                     ->searchable(),
                 TextColumn::make('jenis_kelamin')

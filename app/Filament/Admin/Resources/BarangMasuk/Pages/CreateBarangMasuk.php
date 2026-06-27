@@ -19,14 +19,14 @@ class CreateBarangMasuk extends CreateRecord
             ['stok' => 0]
         );
 
-        $barangMasuk->stok += $data['stok_masuk'];
+        $barangMasuk->stok += $data['stok'];
         $barangMasuk->tanggal_masuk = now();
         $barangMasuk->save();
 
         \App\Models\RiwayatBarangMasuk::create([
             'barang_masuk_id' => $barangMasuk->id,
             'jenis_pergerakan' => 'masuk',
-            'jumlah' => $data['stok_masuk'],
+            'jumlah' => $data['stok'],
             'keterangan' => 'Penambahan Stok Manual via Panel',
             'tanggal' => now(),
         ]);

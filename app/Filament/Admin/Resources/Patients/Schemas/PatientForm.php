@@ -20,6 +20,9 @@ class PatientForm
             ->components([
                 Section::make('Informasi Pasien')
                     ->schema([
+                        TextInput::make('no_bon')
+                            ->label('No BON')
+                            ->placeholder('e.g. 001'),
                         TextInput::make('nama')
                             ->label('Nama Pasien')
                             ->required(),

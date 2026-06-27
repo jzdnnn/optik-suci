@@ -66,6 +66,22 @@ class BarangKeluarObserver
         //
     }
 
+    public function saved(BarangKeluar $barangKeluar): void
+    {
+        $accessories = $barangKeluar->barangKeluarAccessories()->get();
+        $totalJual = (float) $accessories->sum('subtotal_jual');
+        $totalBeli = (float) $accessories->sum('subtotal_beli');
+
+        if ((float)$barangKeluar->total_aksesoris !== $totalJual || (float)$barangKeluar->biaya_beli_aksesoris !== $totalBeli) {
+            \Illuminate\Support\Facades\DB::table('barang_keluar')
+                ->where('id', $barangKeluar->id)
+                ->update([
+                    'total_aksesoris' => $totalJual,
+                    'biaya_beli_aksesoris' => $totalBeli,
+                ]);
+        }
+    }
+
     public function deleted(BarangKeluar $barangKeluar): void
     {
         if (in_array($barangKeluar->tipe_transaksi, ['frame', 'lengkap']) && $barangKeluar->frame_id) {

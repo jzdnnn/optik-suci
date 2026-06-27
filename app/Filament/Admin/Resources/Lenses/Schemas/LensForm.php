@@ -76,7 +76,14 @@ class LensForm
                                     ->default($get('jenis_kepemilikan'))
                                     ->required()
                                     ->native(false),
-                            ]),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                $category = \App\Models\LensOwnershipCategory::create([
+                                    'name' => $data['name'],
+                                    'type' => $data['type'],
+                                ]);
+                                return $category->id;
+                            }),
 
                         TextInput::make('harga_beli')
                             ->label('Harga Beli')

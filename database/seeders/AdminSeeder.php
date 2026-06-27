@@ -17,7 +17,7 @@ class AdminSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'admin@optiksuci.com'],
             [
-                'name' => 'Admin Optik Suci',
+                'name' => 'Super Admin Optik Suci',
                 'password' => Hash::make('admin123'),
             ]
         );

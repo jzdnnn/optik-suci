@@ -26,6 +26,10 @@ class LaporanBulanan extends Model
         static::saving(function ($model) {
             $model->omzet = $model->calculated_omzet;
             $model->pendapatan_harian = $model->calculated_pendapatan_harian;
+            
+            $model->pendapatan_bpjs = (float) BarangKeluar::whereYear('tanggal_transaksi', $model->tahun)
+                ->whereMonth('tanggal_transaksi', $model->bulan)
+                ->sum('potongan_bpjs');
 
             // Calculate weekly deposits
             for ($week = 1; $week <= 5; $week++) {
@@ -46,13 +50,17 @@ class LaporanBulanan extends Model
             ->whereMonth('tanggal_transaksi', $this->bulan)
             ->get()
             ->sum(function ($item) {
+                $base = 0;
                 // Jika langsung lunas di hari yang sama
-                if ($item->status_pembayaran === 'lunas' && $item->tanggal_pelunasan == $item->tanggal_transaksi) {
-                    return $item->total_transaksi;
+                if ($item->status_pembayaran === 'lunas' && ($item->tanggal_pelunasan == $item->tanggal_transaksi || is_null($item->tanggal_pelunasan))) {
+                    $base = $item->total_transaksi;
+                } else {
+                    // Jika DP (termasuk yang sudah lunas tapi pelunasannya di hari/bulan berbeda), 
+                    // maka cash yang masuk pada saat tanggal_transaksi adalah sebesar DP
+                    $base = $item->dp_dibayar ?: 0;
                 }
-                // Jika DP (termasuk yang sudah lunas tapi pelunasannya di hari/bulan berbeda), 
-                // maka cash yang masuk pada saat tanggal_transaksi adalah sebesar DP
-                return $item->dp_dibayar ?: 0;
+                // Tambahkan sisa uang kembalian BPJS ke omzet
+                return $base + ($item->sisa_bpjs ?: 0);
             });
 
         // Omset dari pelunasan transaksi yang dibuat di bulan sebelumnya namun dilunasi bulan ini
@@ -125,7 +133,17 @@ class LaporanBulanan extends Model
 
     public function getTotalPengeluaranStokAttribute(): float
     {
-        return $this->getExpenseSumByType('stok');
+        $baseExpense = $this->getExpenseSumByType('stok');
+        
+        $biayaLensaLuar = (float) BarangKeluar::whereYear('tanggal_transaksi', $this->tahun)
+            ->whereMonth('tanggal_transaksi', $this->bulan)
+            ->sum('biaya_beli_lensa');
+
+        $biayaAksesoris = (float) BarangKeluar::whereYear('tanggal_transaksi', $this->tahun)
+            ->whereMonth('tanggal_transaksi', $this->bulan)
+            ->sum('biaya_beli_aksesoris');
+            
+        return $baseExpense + $biayaLensaLuar + $biayaAksesoris;
     }
 
     public function getTotalPengeluaranGajiAttribute(): float

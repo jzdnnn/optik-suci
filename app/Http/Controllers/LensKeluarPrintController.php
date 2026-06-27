@@ -77,7 +77,7 @@ class LensKeluarPrintController extends Controller
                     }
 
                     $totalPasang = $dayItems->sum('jumlah_lensa_pcs') / 2;
-                    $nominal = $dayItems->sum('harga_lensa');
+                    $nominal = $dayItems->sum(fn($t) => (float)$t->harga_lensa + (float)($t->biaya_faset ?? 0));
 
                     $processedDates[] = [
                         'tanggal_raw' => $dateStr,
@@ -109,7 +109,7 @@ class LensKeluarPrintController extends Controller
                     'period1' => $period1,
                     'period2' => $period2,
                     'total_pasang' => $items->sum('jumlah_lensa_pcs') / 2,
-                    'nominal_total' => $items->sum('harga_lensa'),
+                    'nominal_total' => $items->sum(fn($t) => (float)$t->harga_lensa + (float)($t->biaya_faset ?? 0)),
                 ];
             }
 

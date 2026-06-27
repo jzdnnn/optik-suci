@@ -98,7 +98,7 @@
                         @php
                             $pasang = $t->jumlah_lensa_pcs / 2;
                             $totalJumlah += $pasang;
-                            $totalNominal += $t->harga_lensa;
+                            $totalNominal += ($t->harga_lensa + ($t->biaya_faset ?? 0));
                         @endphp
                         <tr>
                             <td class="text-center">{{ $i + 1 }}</td>
@@ -109,7 +109,7 @@
                                 {{ str_replace('.', ',', (float)$pasang) }}
                             </td>
                             <td class="text-right">
-                                Rp{{ number_format($t->harga_lensa, 0, ',', '.') }}
+                                Rp{{ number_format($t->harga_lensa + ($t->biaya_faset ?? 0), 0, ',', '.') }}
                             </td>
                         </tr>
                     @endforeach

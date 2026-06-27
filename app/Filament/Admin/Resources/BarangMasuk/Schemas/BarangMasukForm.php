@@ -28,14 +28,20 @@ class BarangMasukForm
                         if ($type === \App\Models\Frame::class) {
                             return \App\Models\Frame::pluck('name', 'id');
                         } elseif ($type === \App\Models\Lens::class) {
-                            return \App\Models\Lens::pluck('name', 'id');
+                            return \App\Models\Lens::with(['lensType', 'lensOwnershipCategory'])
+                                ->get()
+                                ->mapWithKeys(function ($lens) {
+                                    $typeName = $lens->lensType?->name ?? 'Tanpa Jenis';
+                                    $catName = $lens->lensOwnershipCategory?->name ?? 'Tanpa Kategori';
+                                    return [$lens->id => "{$lens->name} - {$typeName} - {$catName}"];
+                                });
                         }
                         return [];
                     })
                     ->searchable()
                     ->required(),
-                TextInput::make('stok_masuk')
-                    ->label('Jumlah Stok Masuk')
+                TextInput::make('stok')
+                    ->label('Jumlah Stok')
                     ->numeric()
                     ->required(),
             ]);

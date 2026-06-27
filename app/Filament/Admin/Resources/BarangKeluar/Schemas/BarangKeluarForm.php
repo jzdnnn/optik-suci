@@ -6,6 +6,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Hidden;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
@@ -22,34 +24,42 @@ class BarangKeluarForm
                     ->schema([
                         Select::make('patient_id')
                             ->relationship('patient', 'nama')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->nama} - " . ($record->no_bon ?? 'Tanpa BON'))
                             ->label('Pasien')
                             ->searchable()
                             ->required()
                             ->live()
+                            ->afterStateHydrated(function (Get $get, Set $set, $state) {
+                                if ($state) {
+                                    $patient = \App\Models\Patient::find($state);
+                                    if ($patient) {
+                                        $set('no_bon', $patient->no_bon);
+                                    }
+                                }
+                            })
                             ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                 if ($state) {
                                     $patient = \App\Models\Patient::find($state);
                                     if ($patient) {
+                                        $set('no_bon', $patient->no_bon);
+                                        
                                         $potongan = 0;
                                         if ($patient->kategori === 'BPJS Kelas 1') $potongan = 330000;
                                         elseif ($patient->kategori === 'BPJS Kelas 2') $potongan = 220000;
                                         elseif ($patient->kategori === 'BPJS Kelas 3') $potongan = 165000;
                                         
                                         $set('potongan_bpjs', $potongan);
-                                        
-                                        $frame = (float) $get('harga_frame') ?: 0;
-                                        $lensa = (float) $get('harga_lensa') ?: 0;
-                                        $diskon = (float) $get('diskon') ?: 0;
-                                        $set('total_transaksi', $frame + $lensa - $potongan - $diskon);
+                                        self::updateTotals($get, $set);
                                     }
                                 }
                             }),
                         TextInput::make('no_bon')
                             ->label('No BON')
                             ->readOnly()
-                            ->placeholder('Auto Generate (e.g. 001)'),
+                            ->dehydrated()
+                            ->placeholder('Otomatis dari Data Pasien'),
                         DatePicker::make('tanggal_transaksi')
-                            ->label('Tanggal Transaksi')
+                            ->label('Tanggal Pembuatan')
                             ->default(now())
                             ->required(),
                         DatePicker::make('tanggal_pengambilan')
@@ -61,8 +71,12 @@ class BarangKeluarForm
                                 'frame' => 'Hanya Frame',
                                 'lensa' => 'Hanya Lensa',
                                 'lengkap' => 'Frame & Lensa (Lengkap)',
+                                'aksesoris' => 'Hanya Aksesoris',
                             ])
                             ->live()
+                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                self::updateTotals($get, $set);
+                            })
                             ->required(),
                     ])->columns(['sm' => 1, 'md' => 2, 'lg' => 3])->columnSpanFull(),
 
@@ -79,10 +93,7 @@ class BarangKeluarForm
                                     $frame = \App\Models\Frame::find($state);
                                     if ($frame) {
                                         $set('harga_frame', $frame->harga_jual);
-                                        $lensa = (float) $get('harga_lensa') ?: 0;
-                                        $potongan = (float) $get('potongan_bpjs') ?: 0;
-                                        $diskon = (float) $get('diskon') ?: 0;
-                                        $set('total_transaksi', $frame->harga_jual + $lensa - $potongan - $diskon);
+                                        self::updateTotals($get, $set);
                                     }
                                 }
                             })
@@ -122,22 +133,26 @@ class BarangKeluarForm
                 Section::make('Detail Lensa')
                     ->schema([
                         Select::make('lens_id')
-                            ->relationship('lens', 'name')
+                            ->relationship('lens', 'name', fn ($query) => $query->with(['lensType', 'lensOwnershipCategory']))
+                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} - " . ($record->lensType?->name ?? 'Tanpa Jenis') . " - " . ($record->lensOwnershipCategory?->name ?? 'Tanpa Kategori'))
                             ->label('Pilih Lensa')
                             ->searchable()
                             ->required(fn (Get $get) => in_array($get('tipe_transaksi'), ['lensa', 'lengkap']))
                             ->live()
                             ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                 if ($state) {
-                                    $lens = \App\Models\Lens::find($state);
+                                    $lens = \App\Models\Lens::with('lensOwnershipCategory')->find($state);
                                     if ($lens) {
                                         $pcs = (int) ($get('jumlah_lensa_pcs') ?: 2);
-                                        $hargaTotalLensa = $lens->harga_jual * $pcs;
+                                        $pairs = (int) ceil($pcs / 2);
+                                        $hargaTotalLensa = $lens->harga_jual * $pairs;
                                         $set('harga_lensa', $hargaTotalLensa);
-                                        $frame = (float) $get('harga_frame') ?: 0;
-                                        $potongan = (float) $get('potongan_bpjs') ?: 0;
-                                        $diskon = (float) $get('diskon') ?: 0;
-                                        $set('total_transaksi', $frame + $hargaTotalLensa - $potongan - $diskon);
+                                        
+                                        if ($lens->lensOwnershipCategory?->type !== 'Luar Optik') {
+                                            $set('biaya_beli_lensa', 0);
+                                        }
+                                        
+                                        self::updateTotals($get, $set);
                                     }
                                 }
                             }),
@@ -157,12 +172,10 @@ class BarangKeluarForm
                                     $lens = \App\Models\Lens::find($lensId);
                                     if ($lens) {
                                         $pcs = (int) $state;
-                                        $hargaTotalLensa = $lens->harga_jual * $pcs;
+                                        $pairs = (int) ceil($pcs / 2);
+                                        $hargaTotalLensa = $lens->harga_jual * $pairs;
                                         $set('harga_lensa', $hargaTotalLensa);
-                                        $frame = (float) $get('harga_frame') ?: 0;
-                                        $potongan = (float) $get('potongan_bpjs') ?: 0;
-                                        $diskon = (float) $get('diskon') ?: 0;
-                                        $set('total_transaksi', $frame + $hargaTotalLensa - $potongan - $diskon);
+                                        self::updateTotals($get, $set);
                                     }
                                 }
                             })
@@ -197,6 +210,37 @@ class BarangKeluarForm
                             ->numeric()
                             ->default(0)
                             ->readOnly(),
+                        TextInput::make('biaya_beli_lensa')
+                            ->label('Biaya Pembelian Lensa (Luar Optik)')
+                            ->numeric()
+                            ->default(0)
+                            ->prefix('Rp')
+                            ->helperText('Biaya pembelian/produksi lensa dari supplier luar optik. Nilai ini tidak memotong total transaksi pasien melainkan dicatat sebagai pengeluaran.')
+                            ->visible(function (Get $get) {
+                                $lensId = $get('lens_id');
+                                if (!$lensId) return false;
+                                $lens = \App\Models\Lens::with('lensOwnershipCategory')->find($lensId);
+                                return $lens?->lensOwnershipCategory?->type === 'Luar Optik';
+                            }),
+                        TextInput::make('warna_lensa')
+                            ->label('Pilihan Warna Lensa')
+                            ->placeholder('Contoh: Hitam 50%, Coklat, Gradasi Blue')
+                            ->required(function (Get $get) {
+                                $lensId = $get('lens_id');
+                                if ($lensId) {
+                                    $lens = \App\Models\Lens::with('lensType')->find($lensId);
+                                    return $lens && $lens->lensType?->name === 'Warna';
+                                }
+                                return false;
+                            })
+                            ->visible(function (Get $get) {
+                                $lensId = $get('lens_id');
+                                if ($lensId) {
+                                    $lens = \App\Models\Lens::with('lensType')->find($lensId);
+                                    return $lens && $lens->lensType?->name === 'Warna';
+                                }
+                                return false;
+                            }),
 
                         Section::make('Ukuran Lensa')
                             ->schema([
@@ -314,24 +358,104 @@ class BarangKeluarForm
                     ->columnSpanFull()
                     ->visible(fn (Get $get) => in_array($get('tipe_transaksi'), ['lensa', 'lengkap'])),
 
+                 Section::make('Pembelian Aksesoris')
+                    ->description('Pilih aksesoris tambahan yang dibeli oleh pasien')
+                    ->schema([
+                        Repeater::make('barangKeluarAccessories')
+                            ->relationship('barangKeluarAccessories')
+                            ->schema([
+                                Select::make('accessory_id')
+                                    ->label('Pilih Aksesoris')
+                                    ->options(\App\Models\Accessory::pluck('nama', 'id'))
+                                    ->searchable()
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function (Get $get, Set $set, $state) {
+                                        if ($state) {
+                                            $acc = \App\Models\Accessory::find($state);
+                                            if ($acc) {
+                                                $qty = (int) ($get('qty') ?: 1);
+                                                $set('harga_jual_satuan', $acc->harga_jual);
+                                                $set('subtotal_jual', $acc->harga_jual * $qty);
+                                                $set('harga_beli_satuan', $acc->harga_beli);
+                                                $set('subtotal_beli', $acc->harga_beli * $qty);
+                                            }
+                                        }
+                                    }),
+                                TextInput::make('qty')
+                                    ->label('Jumlah (Qty)')
+                                    ->numeric()
+                                    ->default(1)
+                                    ->required()
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Get $get, Set $set, $state) {
+                                        $accId = $get('accessory_id');
+                                        if ($accId) {
+                                            $acc = \App\Models\Accessory::find($accId);
+                                            if ($acc) {
+                                                $qty = (int) ($state ?: 1);
+                                                $set('harga_jual_satuan', $acc->harga_jual);
+                                                $set('subtotal_jual', $acc->harga_jual * $qty);
+                                                $set('harga_beli_satuan', $acc->harga_beli);
+                                                $set('subtotal_beli', $acc->harga_beli * $qty);
+                                            }
+                                        }
+                                    }),
+                                TextInput::make('harga_jual_satuan')
+                                    ->label('Harga Satuan')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->readOnly()
+                                    ->dehydrated(),
+                                TextInput::make('subtotal_jual')
+                                    ->label('Total Harga')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->readOnly()
+                                    ->dehydrated(),
+                                Hidden::make('harga_beli_satuan')
+                                    ->dehydrated(),
+                                Hidden::make('subtotal_beli')
+                                    ->dehydrated(),
+                            ])
+                            ->columns(4)
+                            ->live()
+                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                self::updateTotals($get, $set);
+                            })
+                            ->columnSpanFull(),
+                    ])
+                    ->columnSpanFull(),
+
                 Section::make('Pembayaran')
                     ->schema([
-                        TextInput::make('potongan_bpjs')
+                         TextInput::make('potongan_bpjs')
                             ->label('Potongan BPJS')
                             ->numeric()
                             ->default(0)
                             ->readOnly(),
+                        TextInput::make('sisa_bpjs')
+                            ->label('Sisa Uang Kembalian BPJS')
+                            ->numeric()
+                            ->default(0)
+                            ->readOnly()
+                            ->prefix('Rp')
+                            ->dehydrated(),
                         TextInput::make('diskon')
                             ->label('Diskon Lainnya')
                             ->numeric()
                             ->default(0)
                             ->live(onBlur: true)
                             ->afterStateUpdated(function (Get $get, Set $set, $state) {
-                                $frame = (float) $get('harga_frame') ?: 0;
-                                $lensa = (float) $get('harga_lensa') ?: 0;
-                                $potongan = (float) $get('potongan_bpjs') ?: 0;
-                                $diskon = (float) $state ?: 0;
-                                $set('total_transaksi', $frame + $lensa - $potongan - $diskon);
+                                self::updateTotals($get, $set);
+                            }),
+                        TextInput::make('tambahan_biaya')
+                            ->label('Tambahan Biaya')
+                            ->numeric()
+                            ->default(0)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                self::updateTotals($get, $set);
                             }),
                         TextInput::make('total_transaksi')
                             ->label('Total Transaksi')
@@ -349,6 +473,14 @@ class BarangKeluarForm
                             ->live()
                             ->default('belum_bayar')
                             ->required(),
+                        Select::make('metode_pembayaran')
+                            ->label('Metode Pembayaran')
+                            ->options([
+                                'Cash' => 'Cash (Tunai)',
+                                'Transfer' => 'Transfer (TF)',
+                            ])
+                            ->default('Cash')
+                            ->required(),
                         TextInput::make('dp_dibayar')
                             ->label('Nominal DP / Dibayar')
                             ->numeric()
@@ -356,5 +488,35 @@ class BarangKeluarForm
                             ->visible(fn (Get $get) => $get('status_pembayaran') === 'dp'),
                     ])->columns(['sm' => 1, 'md' => 2, 'lg' => 3])->columnSpanFull(),
             ]);
+    }
+
+    public static function updateTotals(Get $get, Set $set): void
+    {
+        $tipe = $get('tipe_transaksi');
+        $frame = in_array($tipe, ['frame', 'lengkap']) ? ((float) $get('harga_frame') ?: 0) : 0;
+        $lensa = in_array($tipe, ['lensa', 'lengkap']) ? ((float) $get('harga_lensa') ?: 0) : 0;
+        $tambahanBiaya = (float) $get('tambahan_biaya') ?: 0;
+        
+        $items = $get('barangKeluarAccessories') ?? [];
+        $totalAksesoris = 0.0;
+        if (is_array($items)) {
+            foreach ($items as $item) {
+                $totalAksesoris += (float) ($item['subtotal_jual'] ?? 0);
+            }
+        }
+
+        $potongan = (float) $get('potongan_bpjs') ?: 0;
+        $diskon = (float) $get('diskon') ?: 0;
+
+        // Diskon memotong harga kacamata (Frame + Lensa + Tambahan Biaya + Aksesoris) terlebih dahulu
+        $adjustedPrice = max(0.0, ($frame + $lensa + $tambahanBiaya + $totalAksesoris) - $diskon);
+
+        $sisaBpjs = 0.0;
+        if ($potongan > 0 && $adjustedPrice < $potongan) {
+            $sisaBpjs = $potongan - $adjustedPrice;
+        }
+
+        $set('sisa_bpjs', $sisaBpjs);
+        $set('total_transaksi', max(0.0, $adjustedPrice - $potongan));
     }
 }

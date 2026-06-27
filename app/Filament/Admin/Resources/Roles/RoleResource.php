@@ -55,19 +55,49 @@ class RoleResource extends Resource
                                     'patient' => 'Data Pasien/Customer',
                                     'barang_masuk' => 'Barang Masuk',
                                     'barang_keluar' => 'Barang Keluar',
+                                    'laporan_keuangan' => 'Laporan Keuangan',
+                                    'laporan_bulanan' => 'Laporan Bulanan',
+                                    'jenis_pengeluaran' => 'Kategori Pengeluaran',
+                                    'pengeluaran' => 'Catat Pengeluaran',
+                                    'setoran_mingguan' => 'Setoran Mingguan',
                                 ])->map(function ($label, $resource) {
-                                    return CheckboxList::make('permissions')
+                                    return CheckboxList::make("permissions_{$resource}")
                                         ->label($label)
-                                        ->relationship('permissions', 'name', function ($query) use ($resource) {
-                                            return $query->where('name', 'like', "%_{$resource}");
+                                        ->options(function () use ($resource) {
+                                            return \Spatie\Permission\Models\Permission::where('name', 'like', "%_{$resource}")
+                                                ->get()
+                                                ->pluck('name', 'id')
+                                                ->map(fn ($name) => match(explode('_', $name)[0]) {
+                                                    'viewAny' => 'Lihat Daftar (View Any)',
+                                                    'view' => 'Lihat Detail (View)',
+                                                    'create' => 'Tambah (Create)',
+                                                    'update' => 'Ubah (Update)',
+                                                    'delete' => 'Hapus (Delete)',
+                                                    default => $name,
+                                                })
+                                                ->toArray();
                                         })
-                                        ->getOptionLabelFromRecordUsing(fn ($record) => match(explode('_', $record->name)[0]) {
-                                            'viewAny' => 'Lihat Daftar (View Any)',
-                                            'view' => 'Lihat Detail (View)',
-                                            'create' => 'Tambah (Create)',
-                                            'update' => 'Ubah (Update)',
-                                            'delete' => 'Hapus (Delete)',
-                                            default => $record->name,
+                                        ->afterStateHydrated(function ($component, $record) use ($resource) {
+                                            if ($record) {
+                                                $component->state(
+                                                    $record->permissions()
+                                                        ->where('name', 'like', "%_{$resource}")
+                                                        ->pluck('id')
+                                                        ->toArray()
+                                                );
+                                            }
+                                        })
+                                        ->dehydrated(false)
+                                        ->saveRelationshipsUsing(function ($record, $state) use ($resource) {
+                                            // Ambil ID permission yang bukan untuk resource ini
+                                            $otherPermissions = $record->permissions()
+                                                ->where('name', 'not like', "%_{$resource}")
+                                                ->pluck('id')
+                                                ->toArray();
+                                            
+                                            // Gabungkan dan sync
+                                            $newPermissions = array_merge($otherPermissions, $state);
+                                            $record->permissions()->sync($newPermissions);
                                         })
                                         ->bulkToggleable();
                                     })->values()->toArray()
