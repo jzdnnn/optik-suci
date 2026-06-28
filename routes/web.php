@@ -10,6 +10,10 @@ Route::get('/admin/laporan-keuangan/print', [App\Http\Controllers\ReportControll
     ->name('laporan-keuangan.print')
     ->middleware(['web', 'auth']);
 
+Route::get('/admin/pembukuan-harian/print', [App\Http\Controllers\ReportController::class, 'printPembukuanHarian'])
+    ->name('pembukuan-harian.print')
+    ->middleware(['web', 'auth']);
+
 Route::get('/admin/laporan-bulanan/{laporanBulanan}/print', [App\Http\Controllers\LaporanBulananPrintController::class, 'printMonthlyReport'])
     ->name('laporan-bulanan.print')
     ->middleware(['web', 'auth']);
